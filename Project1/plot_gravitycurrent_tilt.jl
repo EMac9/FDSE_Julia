@@ -4,7 +4,7 @@
 using Oceananigans, JLD2, Plots, Printf
 
 # Set the filename (without the extension)
-filename = "gravitycurrent"
+filename = "gravitycurrent_tilt"
 
 # Read in the first iteration.  We do this to load the grid
 # filename * ".jld2" concatenates the extension to the end of the filename
@@ -21,6 +21,17 @@ xv, yv, zv = nodes(v_ic)
 xw, yw, zw = nodes(w_ic)
 xb, yb, zb = nodes(b_ic)
 xc, yc, zc = nodes(c_ic)
+
+# #
+# Δb = 1
+# N2 = 1
+
+# xl = Lx / 70 # The location of the 'lock'
+# Lf = Lx / 200 # The width of the initial buoyancy step
+
+# bᵢ = (Δb / 2) *N2*zb  + (Δb / 2) * ( tanh((xb - xl) / Lf))
+
+
 
 ## Now, open the file with our data
 file_xz = jldopen(filename * ".jld2")
@@ -56,32 +67,36 @@ anim = @animate for (i, iter) in enumerate(iterations)
         u_xz_plot = heatmap(xu, zu, u_xz'; color = :balance, xlabel = "x", ylabel = "z", aspect_ratio = :equal);  
         v_xz_plot = heatmap(xv, zv, v_xz'; color = :balance, xlabel = "x", ylabel = "z", aspect_ratio = :equal); 
         w_xz_plot = heatmap(xw, zw, w_xz'; color = :balance, xlabel = "x", ylabel = "z", aspect_ratio = :equal); 
-        # b_xz_plot = heatmap(xb, zb, b_xz'; color = :thermal, xlabel = "x", ylabel = "z", aspect_ratio = :equal); 
+        b_xz_plot = heatmap(xb, zb, b_xz'; color = :thermal, xlabel = "x", ylabel = "z", aspect_ratio = :equal); 
+        my_min = -0.05;
+        my_max = 0.05;
+        b_pert = b_xz' .- b_ic[:, 1, :]'
+        b_pert_plot = heatmap(xb, zb, b_xz' .- b_ic[:, 1, :]'; color = :thermal, xlabel = "x", ylabel = "z", aspect_ratio = :equal, clims=(my_min, my_max)); 
         c_xz_plot = heatmap(xc, zc, c_xz'; color = :thermal, xlabel = "x", ylabel = "z", aspect_ratio = :equal); 
-        my_min = 0.5;
-        my_max = 1;
-        b_xz_plot = heatmap(xb, zb, b_xz'; color = :thermal, xlabel = "x", ylabel = "z", aspect_ratio = :equal, clims=(my_min, my_max)); 
 
     u_title = @sprintf("u, t = %s", round(t));
     v_title = @sprintf("v, t = %s", round(t));
     w_title = @sprintf("w, t = %s", round(t));
     b_title = @sprintf("b, t = %s", round(t));
+    b_pert_title = @sprintf("b - b(t=0), t = %s", round(t));
     c_title = @sprintf("c (dye), t = %s", round(t));
 
 # Combine the sub-plots into a single figure
-    plot(b_xz_plot, c_xz_plot, layout = (2, 1), size = (1600, 400),
-    title = [b_title c_title])
+#    plot(b_xz_plot, c_xz_plot, layout = (2, 1), size = (401, 800),
+#     title = [b_title c_title])
+
+#plot(b_xz_plot, b_pert_plot, layout = (2, 1), size = (401, 800),
+plot(b_xz_plot, b_pert_plot, layout = (2, 1), size = (1600, 400),
+
+     title = [b_title b_pert_title])
 
     iter == iterations[end] && close(file_xz)
 end
 
 # Save the animation to a file
-mp4(anim, "gravitycurrent.mp4", fps = 20) # hide
+mp4(anim, "gravitycurrent_tilt.mp4", fps = 20) # hide
 
 # Now, make a plot of our saved variables
 # In this case, plot the buoyancy at the bottom of the domain as a function of x and t
 # You can (and should) change this to interrogate other quantities
-heatmap(xb, t_save, b_bottom', xlabel="x", ylabel="t", title="buoyancy at z=0")
-
-png("gravcur.png")
-
+heatmap(xb, t_save, b_bottom', xlabel="x", ylabel="t", title="buoyancy at z=0", grid=true)

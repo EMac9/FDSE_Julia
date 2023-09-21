@@ -17,24 +17,51 @@ Ny = 128   # number of grid points in y-direction
 # Construct a rectilinear grid that is periodic in x-direction and bounded in y-direction
 grid = RectilinearGrid(size = (Nx, Ny),
                        x = (0, Lx), y = (0, Ly),
-                       topology = (Periodic, Bounded, Flat)
+                       topology = (Bounded, Bounded, Flat)
 )
+v_bcs = FieldBoundaryConditions(east = ValueBoundaryCondition(0),
+                                west = ValueBoundaryCondition(0))
+u_bcs = FieldBoundaryConditions(north = ValueBoundaryCondition(0),
+                                south = ValueBoundaryCondition(0))
 
+Re = 0.1
 # Set up a model for Rossby waves
 model = NonhydrostaticModel(; grid,
               advection = UpwindBiasedFifthOrder(),   # Specify the advection scheme.  Another good choice is WENO() which is more accurate but slower
             timestepper = :RungeKutta3,   # Set the timestepping scheme, here 3rd order Runge-Kutta
                 tracers = :c,
-                coriolis = BetaPlane(rotation_rate = 7.292115e-5, latitude = 0, radius = 6371e3)   # set Coriolis parameter using the Beta-plane approximation 
-)
+                boundary_conditions = (u=u_bcs,v=v_bcs),
+                coriolis = BetaPlane(rotation_rate = 7.292115e-5, latitude = 45, radius = 6371e3),   # set Coriolis parameter using the Beta-plane approximation
+                closure = (ScalarDiffusivity(ν = 1 / Re, κ = 1 / Re)),  # set a constant kinematic viscosity and diffusivty, here just 1/Re since we are solving the non-dimensional equations 
+
+                )
+
+
+# # Set up a model for Rossby waves
+# model = NonhydrostaticModel(; grid,
+#               advection = UpwindBiasedFifthOrder(),   # Specify the advection scheme.  Another good choice is WENO() which is more accurate but slower
+#             timestepper = :RungeKutta3,   # Set the timestepping scheme, here 3rd order Runge-Kutta
+#                 tracers = :c,
+#                 coriolis = BetaPlane(rotation_rate = 7.292115e-5, latitude = 45, radius = 6371e3)   # set Coriolis parameter using the Beta-plane approximation 
+# )
+#beta plane is an Oceananigans function
+#can play with the coriolis params eg. smaller earth, diff latitude
+
+#this project and the next one, you can go back to a different project, dont need to follow every single step
+# Presentations:
+  # pick something interesting you want to do
+#
+
+#everything will be dimensional!
 
 # Set wavenumbers associated with the initial condition
 k = 2 * pi / 200kilometers 
 l = 2 * pi / 200kilometers
 
 # Define functions for the initial conditions
-u₀ = 0.001   # units: m/s
-uᵢ(x, y, z) = u₀ * sin(k * x) * sin(l * y)
+u₀ = 0.05  # units: m/s #amplitude of the initial waves
+U = -0.01
+uᵢ(x, y, z) = u₀ * sin(k * x) * sin(l * y) 
 vᵢ(x, y, z) = u₀ * (k / l) * cos(k * x) * cos(l * y)
 wᵢ(x, y, z) = 0
 cᵢ(x, y, z) = sin(k * x) * cos(l * y) # Here, we set the function for c so that it is proportional to the streamfunction associated with (u,v)
@@ -43,7 +70,7 @@ cᵢ(x, y, z) = sin(k * x) * cos(l * y) # Here, we set the function for c so tha
 set!(model, u = uᵢ, v = vᵢ, w = wᵢ, c = cᵢ)
 
 # Create a 'simulation' to run the model for a specified length of time
-simulation = Simulation(model, Δt = 10hours, stop_iteration = 1000)
+simulation = Simulation(model, Δt = 10hours, stop_iteration = 2000)
 
 # Add callback that prints progress message during simulation
 progress(sim) = @info string("Iter: ", iteration(sim),

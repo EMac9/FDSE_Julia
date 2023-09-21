@@ -4,7 +4,8 @@
 using Oceananigans, JLD2, Plots, Printf
 
 # Set the filename (without the extension)
-filename = "KH"
+#filename = "KH"
+# filename = C:\Users\Eilean\OneDrive - University of East Anglia\Training\FDSE\Julia\FDSE_Julia\KH
 
 # Read in the first iteration.  We do this to load the grid
 # filename * ".jld2" concatenates the extension to the end of the filename
@@ -46,6 +47,9 @@ anim = @animate for (i, iter) in enumerate(iterations)
     ω_xz = file_xz["timeseries/ω/$iter"][:, 1, :];
     χ_xz = file_xz["timeseries/χ/$iter"][:, 1, :];
     ϵ_xz = file_xz["timeseries/ϵ/$iter"][:, 1, :];
+
+    #mean_u_xz = mean(u_xz, dims = 1)
+    #perturbation = u_xz-mean_u_xz
 
     t = file_xz["timeseries/t/$iter"];
 

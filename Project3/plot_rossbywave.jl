@@ -63,7 +63,7 @@ anim = @animate for (i, iter) in enumerate(iterations)
 end
 
 # Save the animation to a file
-mp4(anim, "rossbywave.mp4", fps = 20) # hide
+mp4(anim, "rossbywavelat45.mp4", fps = 20) # hide
 
 # Now, make a plot of our saved variables
 Plots.heatmap(xu / 1kilometer, t_save / 1day, u_mid', xlabel="x (km)", ylabel="t (days)", title="u at y=Ly/2")

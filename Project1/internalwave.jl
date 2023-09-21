@@ -11,11 +11,12 @@ Lz = 1   # size in the vertical (z) direction
 
 # Set the grid size
 Nx = 256  # number of gridpoints in the x-direction
+Ny=1
 Nz = 32   # number of gridpoints in the z-direction
 
 # Some timestepping parameters
 max_Δt = 0.05 # maximum allowable timestep 
-duration = 20 # The non-dimensional duration of the simulation
+duration = 10 # The non-dimensional duration of the simulation
 
 # Set the Reynolds number (Re=Ul/ν)
 Re = 5000
@@ -23,18 +24,41 @@ Re = 5000
 # Set the change in the non-dimensional buouancy 
 Δb = 1
 
+# Buoyancy
+N2 = 5
 # Set the amplitude of the random perturbation (kick)
 kick = 0.05
 
 # Now, some parameters that will be used for the initial conditions
-xl = Lx / 100 # The location of the 'lock'
+xl = Lx / 10 # The location of the 'lock'
 Lf = Lx / 100 # The width of the initial buoyancy step
 
 # construct a rectilinear grid using an inbuilt Oceananigans function
 # Here, the topology parameter sets the style of boundaries in the x, y, and z directions
 # 'Bounded' corresponds to wall-bounded directions and 'Flat' corresponds to the dimension that is not considered (here, that is the y direction)
-grid = RectilinearGrid(size = (Nx, Nz), x = (0, Lx), z = (0, Lz), topology = (Bounded, Flat, Bounded))
+# grid = RectilinearGrid(size = (Nx, Nz), x = (0, Lx), z = (0, Lz), topology = (Bounded, Flat, Bounded))
 
+# halo is for ghost cells, in this case 4 ghost cells are added
+#underlying_grid = RectilinearGrid(size = (Nx, Nz), x = (0, Lx), z = (0, Lz), topology = (Periodic, Flat, Bounded), halo = (4,4))
+underlying_grid = RectilinearGrid(size = (Nx, Nz), x = (0, Lx), z = (0, Lz), topology = (Bounded, Flat, Bounded), halo = (4,4))
+
+
+# Create a hill in the middle of the domain
+h_hill = 0.1
+hill_width = 0.1
+hill(x,y) = h_hill * exp(-(x-Lx/4)^2 / (hill_width)^2)
+#hill(x,y) = 0.2 * sin(5*(2*pi/Lx*x))
+
+# hill(x,y) = 0.5 * sin(-(x))
+grid = ImmersedBoundaryGrid(underlying_grid, GridFittedBottom(hill))
+
+
+# set the boundary conditions
+velocity_bcs = FieldBoundaryConditions(immersed=ValueBoundaryCondition(0.0));
+
+# set the tilting of the coordinate
+θ = -0
+ĝ = [sind(θ),0,cosd(θ)]       # tilted gravity unit vector
 # set the boundary conditions
 # FluxBoundaryCondition specifies the momentum or buoyancy flux (in this case zero)
 # ValueBoundaryCondition specifies the value of the corresponding variable
@@ -43,23 +67,25 @@ grid = RectilinearGrid(size = (Nx, Nz), x = (0, Lx), z = (0, Lz), topology = (Bo
 # north/south correspond to the boundaries in the y-direction (not used for periodic topology)
 # by default, Oceananigans imposes no flux and no normal flow boundary conditions in bounded directions
 # hence, we could remove the following lines and get the same result, but we show them here as a demonstration
-u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(0),
-                                bottom = FluxBoundaryCondition(0))
-w_bcs = FieldBoundaryConditions(east = FluxBoundaryCondition(0),
-                                west = FluxBoundaryCondition(0))
-b_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(0),
-                                bottom = FluxBoundaryCondition(0),
-                                east = FluxBoundaryCondition(0),
-                                west = FluxBoundaryCondition(0))
+# u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(0),
+#                                 bottom = FluxBoundaryCondition(0))
+# w_bcs = FieldBoundaryConditions(east = FluxBoundaryCondition(0),
+#                                 west = FluxBoundaryCondition(0))
+# b_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(0),
+#                                 bottom = FluxBoundaryCondition(0),
+#                                 east = FluxBoundaryCondition(0),
+#                                 west = FluxBoundaryCondition(0))
 
 # Now, define a 'model' where we specify the grid, advection scheme, bcs, and other settings
 model = NonhydrostaticModel(; grid,
               advection = UpwindBiasedFifthOrder(),  # Specify the advection scheme.  Another good choice is WENO() which is more accurate but slower
             timestepper = :RungeKutta3, # Set the timestepping scheme, here 3rd order Runge-Kutta
                 tracers = (:b, :c),  # Set the name(s) of any tracers, here b is buoyancy and c is a passive tracer (e.g. dye)
-               buoyancy = Buoyancy(model=BuoyancyTracer()), # this tells the model that b will act as the buoyancy (and influence momentum) 
+              #  buoyancy = Buoyancy(model=BuoyancyTracer()), # this tells the model that b will act as the buoyancy (and influence momentum) 
+               buoyancy = Buoyancy(model=BuoyancyTracer(), gravity_unit_vector = -ĝ), # adding 
                 closure = (ScalarDiffusivity(ν = 1 / Re, κ = 1 / Re)),  # set a constant kinematic viscosity and diffusivty, here just 1/Re since we are solving the non-dimensional equations 
-    boundary_conditions = (u = u_bcs, w = w_bcs, b = b_bcs), # specify the boundary conditions that we defiend above
+    # boundary_conditions = (u = u_bcs, w = w_bcs, b = b_bcs), # specify the boundary conditions that we defiend above
+    boundary_conditions = (u = velocity_bcs, w = velocity_bcs, b = velocity_bcs), # specify the boundary conditions that we defiend above
                coriolis = nothing # this line tells the mdoel not to include system rotation (no Coriolis acceleration)
 )
 
@@ -68,17 +94,13 @@ model = NonhydrostaticModel(; grid,
 uᵢ(x, y, z) = kick * randn()
 vᵢ(x, y, z) = 0
 wᵢ(x, y, z) = kick * randn()
+# bᵢ(x, y, z) = (Δb / 2) * (1 + tanh((x - xl) / Lf))*N2*z
+# bᵢ(x, y, z) = 1 * (1 + tanh((x - xl) / Lf))*N2*z
+#bᵢ(x, y, z) = 1 * N2*z
+bᵢ(x, y, z) = (0 + Δb / 2) * ( tanh((x - xl) / Lf)) + N2*z
 
-### 2 gravity waves from each end
 #bᵢ(x, y, z) = (Δb / 2) * (1 + tanh((x - xl) / Lf)) + (Δb / 2) * (tanh((-x) / Lf +(Lx-xl)/Lf))
-
-### normal
-#bᵢ(x, y, z) = (Δb / 2) * (1 + tanh((x - xl) / Lf))
-
-### stratified
-N2 = 10
-bᵢ(x, y, z) = (Δb / 2) * (1 + tanh((x - xl) / Lf))*N2*z
-
+# bᵢ(x, y, z) = (Δb / 2) * (1 + tanh((x - xl) / Lf))*N2*z
 cᵢ(x, y, z) = exp(-((x - Lx / 2) / (Lx / 50))^2) # Initialize with a thin tracer (dye) streak in the center of the domain
 
 # Send the initial conditions to the model to initialize the variables
@@ -86,6 +108,7 @@ set!(model, u = uᵢ, v = vᵢ, w = wᵢ, b = bᵢ, c = cᵢ)
 
 # Now, we create a 'simulation' to run the model for a specified length of time
 simulation = Simulation(model, Δt = max_Δt, stop_time = duration)
+
 
 # ### The `TimeStepWizard`
 #
@@ -118,7 +141,7 @@ b = model.tracers.b # extract the buoyancy
 c = model.tracers.c # extract the tracer
 
 # Set the name of the output file
-filename = "gravitycurrent"
+filename = "gravitycurrent_tilt"
 
 simulation.output_writers[:xz_slices] =
     JLD2OutputWriter(model, (; u, v, w, b, c),
@@ -141,4 +164,4 @@ nothing # hide
 run!(simulation)
 
 # After the simulation is different, plot the results and save a movie
-include("plot_gravitycurrent.jl")
+include("plot_gravitycurrent_tilt.jl")

@@ -21,13 +21,13 @@ duration = 20 # The non-dimensional duration of the simulation
 Re = 5000
 
 # Set the change in the non-dimensional buouancy 
-Δb = 1
+Δb = 1 
 
 # Set the amplitude of the random perturbation (kick)
 kick = 0.05
 
 # Now, some parameters that will be used for the initial conditions
-xl = Lx / 100 # The location of the 'lock'
+xl = Lx / 10 # The location of the 'lock'
 Lf = Lx / 100 # The width of the initial buoyancy step
 
 # construct a rectilinear grid using an inbuilt Oceananigans function
@@ -68,18 +68,10 @@ model = NonhydrostaticModel(; grid,
 uᵢ(x, y, z) = kick * randn()
 vᵢ(x, y, z) = 0
 wᵢ(x, y, z) = kick * randn()
-
-### 2 gravity waves from each end
-#bᵢ(x, y, z) = (Δb / 2) * (1 + tanh((x - xl) / Lf)) + (Δb / 2) * (tanh((-x) / Lf +(Lx-xl)/Lf))
-
-### normal
-#bᵢ(x, y, z) = (Δb / 2) * (1 + tanh((x - xl) / Lf))
-
-### stratified
-N2 = 10
-bᵢ(x, y, z) = (Δb / 2) * (1 + tanh((x - xl) / Lf))*N2*z
-
+# bᵢ(x, y, z) = (Δb / 2) * (1 + tanh((x - xl) / Lf))
 cᵢ(x, y, z) = exp(-((x - Lx / 2) / (Lx / 50))^2) # Initialize with a thin tracer (dye) streak in the center of the domain
+N2=1
+bᵢ(x, y, z) = (Δb / 2) * N2*z + (Δb / 2) * ( tanh((x - xl) / Lf))
 
 # Send the initial conditions to the model to initialize the variables
 set!(model, u = uᵢ, v = vᵢ, w = wᵢ, b = bᵢ, c = cᵢ)

@@ -6,7 +6,7 @@ using Oceananigans
 
 # First, we need to set some physical parameters for the simulation
 # Set the domain size in non-dimensional coordinates
-Lx = 8  # size in the x-direction
+Lx = 1.4*5  # size in the x-direction
 Lz = 1   # size in the vertical (z) direction 
 
 # Set the grid size
@@ -28,7 +28,7 @@ N₀=sqrt(10) # maximum buoyancy frequency
 h=0.1 # shear layer width
 
 # Set the amplitude of the random perturbation (kick)
-kick = 0.05
+kick = 0.0001
 
 # construct a rectilinear grid using an inbuilt Oceananigans function
 # Here, we use periodic (cyclic) boundary conditions in x
