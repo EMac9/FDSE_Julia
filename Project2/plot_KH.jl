@@ -73,5 +73,7 @@ anim = @animate for (i, iter) in enumerate(iterations)
     iter == iterations[end] && close(file_xz)
 end
 
+close(file_xz)
+
 # Save the animation to a file
 mp4(anim, "KH.mp4", fps = 20) # hide
